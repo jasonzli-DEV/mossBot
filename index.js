@@ -25,7 +25,9 @@ client.commands = new Collection();
 function loadCommands() {
   const commands = [];
   const commandsPath = path.join(__dirname, 'commands');
-  const commandFolders = fs.readdirSync(commandsPath);
+  const commandFolders = fs.readdirSync(commandsPath).filter(file => {
+    return fs.statSync(path.join(commandsPath, file)).isDirectory();
+  });
 
   for (const folder of commandFolders) {
     const folderPath = path.join(commandsPath, folder);

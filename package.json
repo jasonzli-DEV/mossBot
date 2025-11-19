@@ -7,17 +7,22 @@
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
-  "keywords": ["discord", "bot", "discord.js", "moderation"],
+  "keywords": [
+    "discord",
+    "bot",
+    "discord.js",
+    "moderation"
+  ],
   "author": "jasonzli-DEV",
   "license": "MIT",
   "dependencies": {
+    "@discordjs/opus": "^0.10.0",
+    "@discordjs/voice": "^0.16.1",
     "discord.js": "^14.14.1",
     "dotenv": "^16.3.1",
-    "mongoose": "^8.0.3",
-    "@discordjs/voice": "^0.16.1",
-    "@discordjs/opus": "^0.9.0",
     "libsodium-wrappers": "^0.7.13",
-    "minecraft-server-util": "^5.4.3"
+    "minecraft-server-util": "^5.4.3",
+    "mongoose": "^8.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
