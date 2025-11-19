@@ -2,6 +2,17 @@ const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerSta
 const path = require('path');
 const fs = require('fs');
 
+// Pre-load encryption libraries to ensure they're available
+const sodium = require('libsodium-wrappers');
+
+// Ensure sodium is ready before use
+let sodiumReady = false;
+(async () => {
+  await sodium.ready;
+  sodiumReady = true;
+  console.log('✅ Sodium encryption ready');
+})();
+
 let connection = null;
 let player = null;
 
@@ -15,6 +26,13 @@ async function initializeMusic(client) {
   if (!channelId) {
     console.log('⚠️  MusicChannelID not configured, skipping auto-music');
     return;
+  }
+
+  // Wait for sodium to be ready
+  if (!sodiumReady) {
+    console.log('⏳ Waiting for encryption libraries to initialize...');
+    await sodium.ready;
+    sodiumReady = true;
   }
 
   const channel = await client.channels.fetch(channelId).catch(() => null);
@@ -37,10 +55,15 @@ async function initializeMusic(client) {
       channelId: channel.id,
       guildId: channel.guild.id,
       adapterCreator: channel.guild.voiceAdapterCreator,
+      selfDeaf: true,
+      selfMute: false,
     });
 
-    // Wait for connection to be ready
-    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+    // Wait for connection to be ready with longer timeout
+    await entersState(connection, VoiceConnectionStatus.Ready, 60_000).catch(error => {
+      console.error('Failed to enter ready state:', error);
+      throw error;
+    });
 
     // Create audio player
     player = createAudioPlayer();
@@ -70,15 +93,21 @@ async function initializeMusic(client) {
     });
 
     // Handle disconnections and reconnect
-    connection.on(VoiceConnectionStatus.Disconnected, async () => {
+    connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
       try {
+        // Try to reconnect within 5 seconds
         await Promise.race([
           entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
           entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
         ]);
+        console.log('🎵 Reconnection successful');
       } catch (error) {
-        console.log('🎵 Disconnected, attempting to reconnect...');
-        setTimeout(() => initializeMusic(client), 5000);
+        // Destroy and recreate connection
+        console.log('🎵 Disconnected, recreating connection...');
+        if (connection) {
+          connection.destroy();
+        }
+        setTimeout(() => initializeMusic(client), 10000);
       }
     });
 
