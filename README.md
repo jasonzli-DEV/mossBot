@@ -27,12 +27,26 @@ A feature-rich Discord bot built with Discord.js v14, featuring moderation tools
 - **Moderator Controls** - Start, stop, or check status with `/music` command
 - Uses the `music/music.opus` file
 
+### 🎫 Ticket System
+- **Create Tickets** - Users can create private support tickets with a button click
+- **Auto-Channel Creation** - Automatically creates private ticket channels
+- **Staff Notifications** - Users are pinged with a welcome message
+- **Close Tickets** - Easy ticket closure with automatic channel deletion
+- **Ticket Tracking** - All tickets stored in database with status tracking
+
+### 🖥️ Server Status Dashboard
+- **Minecraft Server Status** - Real-time monitoring of Minecraft server
+- **Player Count** - Shows current online players
+- **Ticket Statistics** - Display open and total ticket counts
+- **Auto-Updates** - Dashboard updates every 2 minutes
+- **Persistent Message** - Single message that auto-recreates if deleted
+
 ### 📦 Database Integration
-- MongoDB integration for data persistence
+- MongoDB integration with improved timeout handling
 - User activity tracking with time periods
 - Moderator management system
 - Moderation action logging
-- Ticket system support (ready for implementation)
+- Complete ticket system with history
 
 ## Setup
 
@@ -70,9 +84,11 @@ minecraftServerStatusChannelID=channel_id_for_mc_status
 
 **Notes:** 
 - The activity dashboard message ID is now stored in the database automatically
-- If the dashboard message is deleted, the bot will recreate it automatically
+- If dashboard/status/ticket messages are deleted, the bot will recreate them automatically
 - Bot status is now set via the `/status` command by moderators
 - Music will auto-start in the configured `MusicChannelID` on bot launch
+- Server status dashboard shows both Minecraft server and ticket statistics
+- Ticket system requires `ticketChannelID` environment variable to be set
 
 4. Start the bot:
 ```bash

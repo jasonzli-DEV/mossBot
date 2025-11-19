@@ -17,7 +17,7 @@ async function isModerator(member) {
   const moderator = await Moderator.findOne({
     guildId: member.guild.id,
     userId: member.id,
-  });
+  }).maxTimeMS(5000);
 
   return !!moderator;
 }
@@ -28,7 +28,7 @@ async function isModerator(member) {
  * @returns {Promise<Array>}
  */
 async function getModerators(guildId) {
-  return await Moderator.find({ guildId });
+  return await Moderator.find({ guildId }).maxTimeMS(5000);
 }
 
 module.exports = {

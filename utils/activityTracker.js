@@ -65,7 +65,7 @@ async function updateActivityDashboard(client) {
     const guild = client.guilds.cache.first();
     if (!guild) return;
 
-    let config = await BotConfig.findOne({ guildId: guild.id });
+    let config = await BotConfig.findOne({ guildId: guild.id }).maxTimeMS(5000);
     
     // Create config if it doesn't exist
     if (!config) {
@@ -77,7 +77,8 @@ async function updateActivityDashboard(client) {
 
     const activities = await UserActivity.find({ guildId: guild.id })
       .sort({ status: -1, monthlyOnlineTime: -1 })
-      .limit(20);
+      .limit(20)
+      .maxTimeMS(5000);
 
     // Build embed
     const embed = new EmbedBuilder()
@@ -170,7 +171,7 @@ async function updateActivityDashboard(client) {
 // Update user activity
 async function updateUserActivity(guildId, userId, username, isOnline) {
   try {
-    let activity = await UserActivity.findOne({ guildId, userId });
+    let activity = await UserActivity.findOne({ guildId, userId }).maxTimeMS(5000);
 
     if (!activity) {
       activity = new UserActivity({

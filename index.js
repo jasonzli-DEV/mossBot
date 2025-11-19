@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 const { updateActivityDashboard } = require('./utils/activityTracker');
+const { updateServerStatusDashboard } = require('./utils/serverStatusTracker');
+const { updateTicketPanel } = require('./utils/ticketSystem');
 const { initializeMusic } = require('./music/music');
 
 // Create Discord client
@@ -78,10 +80,33 @@ function loadEvents() {
 async function connectDatabase() {
   if (process.env.DatabaseURL) {
     try {
-      await mongoose.connect(process.env.DatabaseURL);
+      await mongoose.connect(process.env.DatabaseURL, {
+        serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
+        socketTimeoutMS: 45000, // Socket timeout
+        connectTimeoutMS: 30000, // Connection timeout
+        maxPoolSize: 10, // Connection pool size
+        minPoolSize: 2,
+        retryWrites: true,
+        retryReads: true,
+      });
       console.log('✅ Connected to MongoDB');
+      
+      // Handle connection events
+      mongoose.connection.on('error', (err) => {
+        console.error('❌ MongoDB connection error:', err);
+      });
+      
+      mongoose.connection.on('disconnected', () => {
+        console.log('⚠️  MongoDB disconnected. Attempting to reconnect...');
+      });
+      
+      mongoose.connection.on('reconnected', () => {
+        console.log('✅ MongoDB reconnected');
+      });
+      
     } catch (error) {
       console.error('❌ Failed to connect to MongoDB:', error);
+      console.log('⚠️  Bot will continue running with limited functionality');
     }
   } else {
     console.log('⚠️  No database URL provided, skipping database connection');
@@ -125,6 +150,23 @@ client.once('ready', async () => {
     }, 5 * 60 * 1000);
   }
   
+  // Initialize server status dashboard
+  if (process.env.minecraftServerStatusChannelID) {
+    await updateServerStatusDashboard(client);
+    console.log('🖥️ Server status dashboard initialized');
+    
+    // Update dashboard every 2 minutes
+    setInterval(async () => {
+      await updateServerStatusDashboard(client);
+    }, 2 * 60 * 1000);
+  }
+  
+  // Initialize ticket panel
+  if (process.env.ticketChannelID) {
+    await updateTicketPanel(client);
+    console.log('🎫 Ticket panel initialized');
+  }
+  
   // Auto-start music if MusicChannelID is configured
   if (process.env.MusicChannelID) {
     // Wait a bit for the bot to fully initialize
@@ -136,6 +178,32 @@ client.once('ready', async () => {
 
 // Interaction handler
 client.on('interactionCreate', async (interaction) => {
+  // Handle button interactions
+  if (interaction.isButton()) {
+    const { createTicket, closeTicket } = require('./utils/ticketSystem');
+    const customId = interaction.customId;
+
+    try {
+      // Handle create ticket button
+      if (customId === 'create_ticket') {
+        await createTicket(interaction);
+        return;
+      }
+
+      // Handle close ticket button
+      if (customId.startsWith('close_ticket_')) {
+        const ticketId = customId.replace('close_ticket_', '');
+        await closeTicket(interaction, ticketId);
+        return;
+      }
+    } catch (error) {
+      console.error('Error handling button interaction:', error);
+    }
+    
+    return;
+  }
+  
+  // Handle slash commands
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);

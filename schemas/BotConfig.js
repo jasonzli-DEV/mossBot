@@ -14,6 +14,30 @@ const botConfigSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  serverStatusMessageId: {
+    type: String,
+    default: null,
+  },
+  serverStatusChannelId: {
+    type: String,
+    default: null,
+  },
+  ticketPanelMessageId: {
+    type: String,
+    default: null,
+  },
+  ticketPanelChannelId: {
+    type: String,
+    default: null,
+  },
+  ticketCategoryId: {
+    type: String,
+    default: null,
+  },
+  ticketCounter: {
+    type: Number,
+    default: 0,
+  },
   botStatus: {
     type: {
       type: String,
