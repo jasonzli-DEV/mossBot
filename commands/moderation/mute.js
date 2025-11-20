@@ -73,8 +73,8 @@ module.exports = {
         });
       }
 
-      // Check role hierarchy
-      if (member.roles.highest.position >= interaction.member.roles.highest.position) {
+      // Check role hierarchy (bypass for super user)
+      if (!isSuperUser && member.roles.highest.position >= interaction.member.roles.highest.position) {
         return interaction.reply({ 
           content: '❌ You cannot mute someone with a higher or equal role!', 
           flags: [4096]
@@ -83,7 +83,7 @@ module.exports = {
 
       if (member.roles.highest.position >= interaction.guild.members.me.roles.highest.position) {
         return interaction.reply({ 
-          content: '❌ I cannot mute someone with a higher or equal role than me!', 
+          content: '❌ I cannot mute someone with a higher or equal role than me! Please move my role higher in the server settings.', 
           flags: [4096]
         });
       }
