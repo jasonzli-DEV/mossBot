@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
 const { isModerator } = require('../../utils/permissions');
 const ModerationLog = require('../../schemas/ModerationLog');
 
@@ -31,7 +31,7 @@ module.exports = {
     }
 
     // Check if bot has permissions
-    if (!interaction.guild.members.me.permissions.has(PermissionFlagBits.ModerateMembers)) {
+    if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
       return interaction.reply({ 
         content: '❌ I need the "Timeout Members" permission to unmute members!', 
         flags: [4096]
