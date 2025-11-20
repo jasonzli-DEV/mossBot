@@ -20,10 +20,13 @@ module.exports = {
     ),
 
   async execute(interaction, client) {
-    // Check if user is a moderator
+    const SUPER_USER_ID = '1288337361490411542';
+    const isSuperUser = interaction.user.id === SUPER_USER_ID;
+
+    // Check if user is a moderator or super user
     const userIsMod = await isModerator(interaction.member);
     
-    if (!userIsMod) {
+    if (!userIsMod && !isSuperUser) {
       return interaction.reply({ 
         content: '❌ You must be a moderator or administrator to use this command!', 
         flags: [4096]
@@ -58,10 +61,10 @@ module.exports = {
       // Log the unmute
       await ModerationLog.create({
         guildId: interaction.guild.id,
-        userId: targetUser.id,
-        username: targetUser.tag,
+        targetId: targetUser.id,
+        targetTag: targetUser.tag,
         moderatorId: interaction.user.id,
-        moderatorName: interaction.user.tag,
+        moderatorTag: interaction.user.tag,
         action: 'unmute',
         reason: reason,
       });

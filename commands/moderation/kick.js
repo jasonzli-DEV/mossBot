@@ -22,6 +22,16 @@ module.exports = {
     const target = interaction.options.getUser('target');
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
+    const SUPER_USER_ID = '1288337361490411542';
+
+    // Check if target is super user
+    if (target.id === SUPER_USER_ID) {
+      return interaction.reply({ 
+        content: '❌ You cannot kick the super user!', 
+        flags: [4096] 
+      });
+    }
+
     // Check if user has permission
     if (!interaction.member.permissions.has(PermissionFlagsBits.KickMembers)) {
       return interaction.reply({ 

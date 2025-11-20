@@ -31,6 +31,16 @@ module.exports = {
     const reason = interaction.options.getString('reason') || 'No reason provided';
     const deleteDays = interaction.options.getInteger('delete-days') || 0;
 
+    const SUPER_USER_ID = '1288337361490411542';
+
+    // Check if target is super user
+    if (target.id === SUPER_USER_ID) {
+      return interaction.reply({ 
+        content: '❌ You cannot ban the super user!', 
+        flags: [4096] 
+      });
+    }
+
     // Check if user has permission
     if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) {
       return interaction.reply({ 

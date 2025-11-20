@@ -28,10 +28,13 @@ module.exports = {
     ),
 
   async execute(interaction, client) {
-    // Check if user is a moderator
+    const SUPER_USER_ID = '1288337361490411542';
+    const isSuperUser = interaction.user.id === SUPER_USER_ID;
+
+    // Check if user is a moderator or super user
     const userIsMod = await isModerator(interaction.member);
     
-    if (!userIsMod) {
+    if (!userIsMod && !isSuperUser) {
       return interaction.reply({ 
         content: '❌ You must be a moderator or administrator to use this command!', 
         flags: [4096]
@@ -53,9 +56,17 @@ module.exports = {
     try {
       const member = await interaction.guild.members.fetch(targetUser.id);
 
-      // Check if target is moderator
+      // Check if target is super user
+      if (targetUser.id === SUPER_USER_ID) {
+        return interaction.reply({ 
+          content: '❌ You cannot mute the super user!', 
+          flags: [4096]
+        });
+      }
+
+      // Check if target is moderator (unless executor is super user)
       const targetIsMod = await isModerator(member);
-      if (targetIsMod) {
+      if (targetIsMod && !isSuperUser) {
         return interaction.reply({ 
           content: '❌ You cannot mute a moderator or administrator!', 
           flags: [4096]
@@ -101,13 +112,13 @@ module.exports = {
       // Log the mute
       await ModerationLog.create({
         guildId: interaction.guild.id,
-        userId: targetUser.id,
-        username: targetUser.tag,
+        targetId: targetUser.id,
+        targetTag: targetUser.tag,
         moderatorId: interaction.user.id,
-        moderatorName: interaction.user.tag,
+        moderatorTag: interaction.user.tag,
         action: 'mute',
         reason: reason,
-        duration: duration,
+        additionalInfo: { duration: duration },
       });
 
       // Send DM to user
