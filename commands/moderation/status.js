@@ -39,7 +39,7 @@ module.exports = {
     if (!userIsMod) {
       return interaction.reply({ 
         content: '❌ You must be a moderator or administrator to change the bot status!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -87,7 +87,7 @@ module.exports = {
       console.error('Error setting bot status:', error);
       await interaction.reply({ 
         content: '❌ Failed to set bot status. Please try again.', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
   },

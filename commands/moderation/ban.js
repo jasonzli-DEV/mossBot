@@ -35,7 +35,7 @@ module.exports = {
     if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) {
       return interaction.reply({ 
         content: '❌ You do not have permission to ban members!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -47,14 +47,14 @@ module.exports = {
       if (member.roles.highest.position >= interaction.member.roles.highest.position) {
         return interaction.reply({ 
           content: '❌ You cannot ban this member due to role hierarchy!', 
-          ephemeral: true 
+          flags: [4096] 
         });
       }
 
       if (!member.bannable) {
         return interaction.reply({ 
           content: '❌ I cannot ban this member! They may have higher roles than me.', 
-          ephemeral: true 
+          flags: [4096] 
         });
       }
     }
@@ -75,7 +75,7 @@ module.exports = {
       console.error('Error banning member:', error);
       await interaction.reply({ 
         content: '❌ Failed to ban the member. Please try again.', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
   },

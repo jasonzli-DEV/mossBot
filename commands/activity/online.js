@@ -19,14 +19,14 @@ module.exports = {
 
       await interaction.reply({
         content: '✅ You have been marked as **ONLINE**! The activity dashboard has been updated.',
-        ephemeral: true
+        flags: [4096]
       });
 
     } catch (error) {
       console.error('Error updating activity:', error);
       await interaction.reply({ 
         content: '❌ Failed to update activity status. Please try again.', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
   },

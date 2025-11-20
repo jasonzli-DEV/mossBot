@@ -93,22 +93,19 @@ async function updateServerStatusDashboard(client) {
 
     // Check Minecraft server
     const mcStatus = await checkMinecraftServerStatus();
-    
-    // Get ticket stats
-    const ticketStats = await getTicketStats(guild.id);
 
     // Build embed
     const embed = new EmbedBuilder()
       .setColor(mcStatus.online ? 0x00FF00 : 0xFF0000)
-      .setTitle('🖥️ Server Status Dashboard')
-      .setDescription('Real-time server and ticket information')
+      .setTitle('🎮 Minecraft Server Status')
+      .setDescription('Real-time Minecraft server information')
       .setTimestamp()
       .setFooter({ text: 'Last updated' });
 
     // Minecraft server status
     if (mcStatus.online) {
       embed.addFields({
-        name: '🎮 Minecraft Server',
+        name: 'Server Information',
         value: `**Status:** 🟢 Online\n` +
                `**Address:** \`${mcStatus.host}:${mcStatus.port}\`\n` +
                `**Players:** ${mcStatus.players.online}/${mcStatus.players.max}\n` +
@@ -118,7 +115,7 @@ async function updateServerStatusDashboard(client) {
       });
     } else {
       embed.addFields({
-        name: '🎮 Minecraft Server',
+        name: 'Server Information',
         value: `**Status:** 🔴 Offline\n` +
                `**Address:** \`${process.env.minecraftServerIP || 'Not configured'}\`\n` +
                `**Error:** ${mcStatus.error || 'Unknown'}`,
@@ -126,20 +123,9 @@ async function updateServerStatusDashboard(client) {
       });
     }
 
-    // Ticket system status
-    const ticketChannelId = process.env.ticketChannelID;
-    if (ticketChannelId) {
-      embed.addFields({
-        name: '🎫 Ticket System',
-        value: `**Open Tickets:** ${ticketStats.open}\n` +
-               `**Total Tickets:** ${ticketStats.total}\n` +
-               `**Channel:** <#${ticketChannelId}>`,
-        inline: false,
-      });
-    }
-
     // Try to edit existing message, or create new one
     if (config.serverStatusMessageId) {
+      console.log(`🔍 Checking for existing server status message: ${config.serverStatusMessageId}`);
       const message = await channel.messages.fetch(config.serverStatusMessageId).catch(() => null);
       
       if (message) {
@@ -148,6 +134,8 @@ async function updateServerStatusDashboard(client) {
       } else {
         console.log('🖥️ Server status message was deleted, creating a new one...');
       }
+    } else {
+      console.log('🖥️ No existing server status message found, creating new one...');
     }
 
     // Create new message

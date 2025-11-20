@@ -20,7 +20,7 @@ module.exports = {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
       return interaction.reply({ 
         content: '❌ You must be an administrator to add moderators!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -28,7 +28,7 @@ module.exports = {
     if (target.bot) {
       return interaction.reply({ 
         content: '❌ You cannot make a bot a moderator!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -38,7 +38,7 @@ module.exports = {
     if (!member) {
       return interaction.reply({ 
         content: '❌ This user is not in the server!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -52,7 +52,7 @@ module.exports = {
       if (existingMod) {
         return interaction.reply({ 
           content: `❌ **${target.tag}** is already a moderator!`, 
-          ephemeral: true 
+          flags: [4096] 
         });
       }
 
@@ -73,7 +73,7 @@ module.exports = {
       console.error('Error adding moderator:', error);
       await interaction.reply({ 
         content: '❌ Failed to add moderator. Please try again.', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
   },

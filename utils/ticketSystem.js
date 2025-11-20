@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = require('discord.js');
 const BotConfig = require('../schemas/BotConfig');
 const Ticket = require('../schemas/Ticket');
+const Moderator = require('../schemas/Moderator');
 
 // Create or update ticket panel
 async function updateTicketPanel(client) {
@@ -56,6 +57,7 @@ async function updateTicketPanel(client) {
 
     // Try to edit existing message, or create new one
     if (config.ticketPanelMessageId) {
+      console.log(`🔍 Checking for existing ticket panel message: ${config.ticketPanelMessageId}`);
       const message = await channel.messages.fetch(config.ticketPanelMessageId).catch(() => null);
       
       if (message) {
@@ -65,6 +67,8 @@ async function updateTicketPanel(client) {
       } else {
         console.log('🎫 Ticket panel message was deleted, creating a new one...');
       }
+    } else {
+      console.log('🎫 No existing ticket panel message found, creating new one...');
     }
 
     // Create new message
@@ -84,10 +88,26 @@ async function updateTicketPanel(client) {
 // Create a new ticket
 async function createTicket(interaction) {
   try {
-    await interaction.deferReply({ ephemeral: true });
-
     const guild = interaction.guild;
     const user = interaction.user;
+
+    // Check if user already has an open ticket BEFORE deferring
+    const existingTicket = await Ticket.findOne({
+      guildId: guild.id,
+      userId: user.id,
+      status: 'open',
+    }).maxTimeMS(5000);
+
+    if (existingTicket) {
+      await interaction.reply({
+        content: `❌ You already have an open ticket: <#${existingTicket.channelId}>`,
+        ephemeral: true
+      });
+      return;
+    }
+
+    // Now defer the reply for ticket creation
+    await interaction.deferReply({ ephemeral: true });
 
     // Get or create config
     let config = await BotConfig.findOne({ guildId: guild.id }).maxTimeMS(5000);
@@ -96,19 +116,6 @@ async function createTicket(interaction) {
       config = await BotConfig.create({
         guildId: guild.id,
         ticketCounter: 0,
-      });
-    }
-
-    // Check if user already has an open ticket
-    const existingTicket = await Ticket.findOne({
-      guildId: guild.id,
-      userId: user.id,
-      status: 'open',
-    }).maxTimeMS(5000);
-
-    if (existingTicket) {
-      return await interaction.editReply({
-        content: `❌ You already have an open ticket: <#${existingTicket.channelId}>`,
       });
     }
 
@@ -150,33 +157,61 @@ async function createTicket(interaction) {
       await config.save();
     }
 
+    // Get all moderators from database
+    const moderators = await Moderator.find({ guildId: guild.id }).maxTimeMS(5000);
+    const moderatorIds = moderators.map(mod => mod.userId);
+
+    // Get all administrators (they are always moderators)
+    const adminMembers = guild.members.cache.filter(member => 
+      member.permissions.has(PermissionFlagsBits.Administrator) && !member.user.bot
+    );
+    const adminIds = Array.from(adminMembers.keys());
+
+    // Combine moderator and admin IDs (remove duplicates)
+    const allModeratorIds = [...new Set([...moderatorIds, ...adminIds])];
+
+    // Build permission overwrites array
+    const permissionOverwrites = [
+      {
+        id: guild.id,
+        deny: [PermissionFlagsBits.ViewChannel],
+      },
+      {
+        id: user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+        ],
+      },
+      {
+        id: guild.members.me.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ManageChannels,
+        ],
+      },
+    ];
+
+    // Add permissions for all moderators and admins
+    for (const modId of allModeratorIds) {
+      permissionOverwrites.push({
+        id: modId,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+        ],
+      });
+    }
+
     // Create ticket channel
     const ticketChannel = await guild.channels.create({
       name: channelName,
       type: ChannelType.GuildText,
       parent: category.id,
-      permissionOverwrites: [
-        {
-          id: guild.id,
-          deny: [PermissionFlagsBits.ViewChannel],
-        },
-        {
-          id: user.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory,
-          ],
-        },
-        {
-          id: guild.members.me.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ManageChannels,
-          ],
-        },
-      ],
+      permissionOverwrites,
     });
 
     // Save ticket to database
@@ -213,24 +248,43 @@ async function createTicket(interaction) {
           .setStyle(ButtonStyle.Danger)
       );
 
+    // Build moderator ping message (exclude the ticket creator)
+    const moderatorMentions = allModeratorIds
+      .filter(id => id !== user.id)
+      .map(id => `<@${id}>`)
+      .join(' ');
+    const contentMessage = moderatorMentions 
+      ? `${user} ${moderatorMentions}` 
+      : `${user}`;
+
+    // Send welcome message with moderator pings
     await ticketChannel.send({
-      content: `${user}`,
+      content: contentMessage,
       embeds: [welcomeEmbed],
       components: [row],
     });
 
     await interaction.editReply({
-      content: `✅ Ticket created: ${ticketChannel}`,
+      content: `✅ Ticket created: ${ticketChannel}`
     });
 
     console.log(`🎫 Ticket #${ticketNumber} created by ${user.tag}`);
 
   } catch (error) {
     console.error('Error creating ticket:', error);
-    if (interaction.deferred) {
-      await interaction.editReply({
-        content: '❌ Failed to create ticket. Please try again later.',
-      });
+    try {
+      if (interaction.deferred) {
+        await interaction.editReply({
+          content: '❌ Failed to create ticket. Please try again later.'
+        });
+      } else {
+        await interaction.reply({
+          content: '❌ Failed to create ticket. Please try again later.',
+          flags: [4096]
+        });
+      }
+    } catch (replyError) {
+      console.error('Could not send error message:', replyError.message);
     }
   }
 }
@@ -238,7 +292,7 @@ async function createTicket(interaction) {
 // Close a ticket
 async function closeTicket(interaction, ticketId) {
   try {
-    await interaction.deferReply();
+    await interaction.deferReply({ ephemeral: true });
 
     const guild = interaction.guild;
     const user = interaction.user;
@@ -252,13 +306,13 @@ async function closeTicket(interaction, ticketId) {
 
     if (!ticket) {
       return await interaction.editReply({
-        content: '❌ Ticket not found in database.',
+        content: '❌ Ticket not found in database.'
       });
     }
 
     if (ticket.status === 'closed') {
       return await interaction.editReply({
-        content: '❌ This ticket is already closed.',
+        content: '❌ This ticket is already closed.'
       });
     }
 
@@ -292,10 +346,19 @@ async function closeTicket(interaction, ticketId) {
 
   } catch (error) {
     console.error('Error closing ticket:', error);
-    if (interaction.deferred) {
-      await interaction.editReply({
-        content: '❌ Failed to close ticket. Please try again later.',
-      });
+    try {
+      if (interaction.deferred) {
+        await interaction.editReply({
+          content: '❌ Failed to close ticket. Please try again later.'
+        });
+      } else {
+        await interaction.reply({
+          content: '❌ Failed to close ticket. Please try again later.',
+          flags: [4096]
+        });
+      }
+    } catch (replyError) {
+      console.error('Could not send error message:', replyError.message);
     }
   }
 }

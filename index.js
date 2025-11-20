@@ -132,7 +132,7 @@ async function registerCommands(commands) {
 }
 
 // Bot ready event
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`🤖 ${client.user.tag} is online!`);
   
   // Register commands
@@ -215,12 +215,17 @@ client.on('interactionCreate', async (interaction) => {
   } catch (error) {
     console.error(`Error executing ${interaction.commandName}:`, error);
     
-    const errorMessage = { content: '❌ There was an error executing this command!', ephemeral: true };
-    
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(errorMessage);
-    } else {
-      await interaction.reply(errorMessage);
+    try {
+      const errorMessage = { content: '❌ There was an error executing this command!', flags: [4096] };
+      
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(errorMessage);
+      } else {
+        await interaction.reply(errorMessage);
+      }
+    } catch (replyError) {
+      // Ignore errors when trying to reply (interaction may have expired)
+      console.error('Could not send error message to user:', replyError.message);
     }
   }
 });

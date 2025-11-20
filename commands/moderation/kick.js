@@ -26,7 +26,7 @@ module.exports = {
     if (!interaction.member.permissions.has(PermissionFlagsBits.KickMembers)) {
       return interaction.reply({ 
         content: '❌ You do not have permission to kick members!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -36,7 +36,7 @@ module.exports = {
     if (!member) {
       return interaction.reply({ 
         content: '❌ This user is not in the server!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -44,14 +44,14 @@ module.exports = {
     if (member.roles.highest.position >= interaction.member.roles.highest.position) {
       return interaction.reply({ 
         content: '❌ You cannot kick this member due to role hierarchy!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
     if (!member.kickable) {
       return interaction.reply({ 
         content: '❌ I cannot kick this member! They may have higher roles than me.', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -68,7 +68,7 @@ module.exports = {
       console.error('Error kicking member:', error);
       await interaction.reply({ 
         content: '❌ Failed to kick the member. Please try again.', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
   },

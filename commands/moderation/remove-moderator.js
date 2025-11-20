@@ -20,7 +20,7 @@ module.exports = {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
       return interaction.reply({ 
         content: '❌ You must be an administrator to remove moderators!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -34,7 +34,7 @@ module.exports = {
       if (!existingMod) {
         return interaction.reply({ 
           content: `❌ **${target.tag}** is not a moderator in the database!`, 
-          ephemeral: true 
+          flags: [4096] 
         });
       }
 
@@ -53,7 +53,7 @@ module.exports = {
       console.error('Error removing moderator:', error);
       await interaction.reply({ 
         content: '❌ Failed to remove moderator. Please try again.', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
   },

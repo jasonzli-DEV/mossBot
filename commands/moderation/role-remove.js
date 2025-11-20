@@ -26,7 +26,7 @@ module.exports = {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
       return interaction.reply({ 
         content: '❌ You do not have permission to manage roles!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -36,7 +36,7 @@ module.exports = {
     if (!member) {
       return interaction.reply({ 
         content: '❌ This user is not in the server!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -44,7 +44,7 @@ module.exports = {
     if (!member.roles.cache.has(role.id)) {
       return interaction.reply({ 
         content: `❌ **${target.tag}** does not have the role **${role.name}**!`, 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -52,14 +52,14 @@ module.exports = {
     if (role.position >= interaction.member.roles.highest.position) {
       return interaction.reply({ 
         content: '❌ You cannot manage this role due to role hierarchy!', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
     if (role.position >= interaction.guild.members.me.roles.highest.position) {
       return interaction.reply({ 
         content: '❌ I cannot manage this role! It is higher than my highest role.', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
 
@@ -76,7 +76,7 @@ module.exports = {
       console.error('Error removing role:', error);
       await interaction.reply({ 
         content: '❌ Failed to remove the role. Please try again.', 
-        ephemeral: true 
+        flags: [4096] 
       });
     }
   },
