@@ -54,37 +54,36 @@ module.exports = {
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
     try {
+      // Defer reply immediately to prevent timeout
+      await interaction.deferReply({ ephemeral: true });
+
       const member = await interaction.guild.members.fetch(targetUser.id);
 
       // Check if target is super user
       if (targetUser.id === SUPER_USER_ID) {
-        return interaction.reply({ 
-          content: '❌ You cannot mute the super user!', 
-          flags: [4096]
+        return interaction.editReply({ 
+          content: '❌ You cannot mute the super user!'
         });
       }
 
       // Check if target is moderator (unless executor is super user)
       const targetIsMod = await isModerator(member);
       if (targetIsMod && !isSuperUser) {
-        return interaction.reply({ 
-          content: '❌ You cannot mute a moderator or administrator!', 
-          flags: [4096]
+        return interaction.editReply({ 
+          content: '❌ You cannot mute a moderator or administrator!'
         });
       }
 
       // Check role hierarchy (bypass for super user)
       if (!isSuperUser && member.roles.highest.position >= interaction.member.roles.highest.position) {
-        return interaction.reply({ 
-          content: '❌ You cannot mute someone with a higher or equal role!', 
-          flags: [4096]
+        return interaction.editReply({ 
+          content: '❌ You cannot mute someone with a higher or equal role!'
         });
       }
 
       if (member.roles.highest.position >= interaction.guild.members.me.roles.highest.position) {
-        return interaction.reply({ 
-          content: '❌ I cannot mute someone with a higher or equal role than me! Please move my role higher in the server settings.', 
-          flags: [4096]
+        return interaction.editReply({ 
+          content: '❌ I cannot mute someone with a higher or equal role than me! Please move my role higher in the server settings.'
         });
       }
 
@@ -133,17 +132,27 @@ module.exports = {
         // User has DMs disabled
       }
 
-      await interaction.reply({
-        content: `✅ **${targetUser.tag}** has been muted for **${durationText}**\n**Reason:** ${reason}`,
-        flags: [4096]
+      await interaction.editReply({
+        content: `✅ **${targetUser.tag}** has been muted for **${durationText}**\n**Reason:** ${reason}`
       });
 
     } catch (error) {
       console.error('Error muting member:', error);
-      await interaction.reply({ 
-        content: '❌ Failed to mute member. Please try again.', 
-        flags: [4096]
-      });
+      
+      try {
+        if (interaction.deferred) {
+          await interaction.editReply({ 
+            content: '❌ Failed to mute member. Please try again.'
+          });
+        } else {
+          await interaction.reply({ 
+            content: '❌ Failed to mute member. Please try again.', 
+            flags: [4096]
+          });
+        }
+      } catch (replyError) {
+        console.error('Could not send error message:', replyError.message);
+      }
     }
   },
 };
