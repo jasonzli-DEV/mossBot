@@ -135,6 +135,42 @@ async function registerCommands(commands) {
 client.once('clientReady', async () => {
   console.log(`🤖 ${client.user.tag} is online!`);
   
+  // Load bot status from database
+  const BotConfig = require('./schemas/BotConfig');
+  const { ActivityType } = require('discord.js');
+  
+  try {
+    const guild = client.guilds.cache.first();
+    if (guild) {
+      const config = await BotConfig.findOne({ guildId: guild.id }).maxTimeMS(5000);
+      
+      if (config && config.botStatus && config.botStatus.text) {
+        const activityTypeMap = {
+          playing: ActivityType.Playing,
+          listening: ActivityType.Listening,
+          watching: ActivityType.Watching,
+          competing: ActivityType.Competing,
+          streaming: ActivityType.Streaming,
+        };
+        
+        const activityType = activityTypeMap[config.botStatus.type];
+        
+        if (config.botStatus.type === 'streaming' && config.botStatus.url) {
+          client.user.setActivity(config.botStatus.text, { 
+            type: activityType,
+            url: config.botStatus.url 
+          });
+        } else {
+          client.user.setActivity(config.botStatus.text, { type: activityType });
+        }
+        
+        console.log(`✅ Loaded bot status from database: ${config.botStatus.type} ${config.botStatus.text}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error loading bot status:', error);
+  }
+  
   // Register commands
   const commands = loadCommands();
   await registerCommands(commands);

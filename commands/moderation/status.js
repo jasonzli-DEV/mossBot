@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ActivityType } = require('discord.js');
 const { isModerator } = require('../../utils/permissions');
+const BotConfig = require('../../schemas/BotConfig');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -59,6 +60,29 @@ module.exports = {
     const activityType = activityTypeMap[typeInput];
 
     try {
+      const guild = interaction.guild;
+
+      // Save to database
+      let config = await BotConfig.findOne({ guildId: guild.id }).maxTimeMS(5000);
+      
+      if (!config) {
+        config = await BotConfig.create({
+          guildId: guild.id,
+          botStatus: {
+            type: typeInput,
+            text: text,
+            url: url || null,
+          },
+        });
+      } else {
+        config.botStatus = {
+          type: typeInput,
+          text: text,
+          url: url || null,
+        };
+        await config.save();
+      }
+
       // Set the bot status
       if (typeInput === 'streaming' && url) {
         client.user.setActivity(text, { 
@@ -79,7 +103,7 @@ module.exports = {
       };
 
       await interaction.reply({
-        content: `✅ Bot status updated!\n${emojiMap[typeInput]} **${typeInput.charAt(0).toUpperCase() + typeInput.slice(1)}** ${text}`,
+        content: `✅ Bot status updated and saved to database!\n${emojiMap[typeInput]} **${typeInput.charAt(0).toUpperCase() + typeInput.slice(1)}** ${text}`,
         ephemeral: false
       });
 

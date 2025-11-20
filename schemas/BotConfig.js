@@ -57,6 +57,10 @@ const botConfigSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  tempVoiceCreatorChannelId: {
+    type: String,
+    default: null,
+  },
 }, {
   timestamps: true,
 });
