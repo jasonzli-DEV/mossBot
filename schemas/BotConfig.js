@@ -61,6 +61,14 @@ const botConfigSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  commandsChannelId: {
+    type: String,
+    default: null,
+  },
+  moderatorChannelId: {
+    type: String,
+    default: null,
+  },
 }, {
   timestamps: true,
 });

@@ -180,10 +180,10 @@ client.once('clientReady', async () => {
     await updateActivityDashboard(client);
     console.log('📊 Activity dashboard initialized');
     
-    // Update dashboard every 5 minutes
+    // Update dashboard every minute
     setInterval(async () => {
       await updateActivityDashboard(client);
-    }, 5 * 60 * 1000);
+    }, 60 * 1000);
   }
   
   // Initialize server status dashboard
@@ -191,10 +191,10 @@ client.once('clientReady', async () => {
     await updateServerStatusDashboard(client);
     console.log('🖥️ Server status dashboard initialized');
     
-    // Update dashboard every 2 minutes
+    // Update dashboard every minute
     setInterval(async () => {
       await updateServerStatusDashboard(client);
-    }, 2 * 60 * 1000);
+    }, 60 * 1000);
   }
   
   // Initialize ticket panel
@@ -202,6 +202,11 @@ client.once('clientReady', async () => {
     await updateTicketPanel(client);
     console.log('🎫 Ticket panel initialized');
   }
+
+  // Initialize activity schedulers
+  const { scheduleMidnightReset, scheduleInactivityCheck } = require('./utils/activityScheduler');
+  scheduleMidnightReset(client);
+  scheduleInactivityCheck(client);
   
   // Auto-start music if MusicChannelID is configured
   if (process.env.MusicChannelID) {
@@ -247,6 +252,25 @@ client.on('interactionCreate', async (interaction) => {
   if (!command) return;
 
   try {
+    // Check if command must be used in specific channel
+    const BotConfig = require('./schemas/BotConfig');
+    const { isModerator } = require('./utils/permissions');
+    
+    const config = await BotConfig.findOne({ guildId: interaction.guild.id }).maxTimeMS(5000);
+    
+    if (config && config.commandsChannelId && interaction.channelId !== config.commandsChannelId) {
+      // Check if user is moderator (they bypass the restriction)
+      const userIsMod = await isModerator(interaction.member);
+      
+      if (!userIsMod) {
+        const commandsChannel = interaction.guild.channels.cache.get(config.commandsChannelId);
+        return interaction.reply({
+          content: `❌ Please use bot commands in ${commandsChannel || 'the designated commands channel'}!`,
+          flags: [4096]
+        });
+      }
+    }
+
     await command.execute(interaction, client);
   } catch (error) {
     console.error(`Error executing ${interaction.commandName}:`, error);
