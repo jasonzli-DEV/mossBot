@@ -72,7 +72,6 @@ async function initializeMusic(client) {
     const playMusic = () => {
       const resource = createAudioResource(musicPath);
       player.play(resource);
-      console.log('🎵 Music playing...');
     };
 
     // Start playing

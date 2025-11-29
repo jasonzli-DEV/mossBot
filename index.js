@@ -7,6 +7,7 @@ const { updateActivityDashboard } = require('./utils/activityTracker');
 const { updateServerStatusDashboard } = require('./utils/serverStatusTracker');
 const { updateTicketPanel } = require('./utils/ticketSystem');
 const { initializeMusic } = require('./music/music');
+const { initializePlayerListTracker } = require('./utils/playerListTracker');
 
 // Create Discord client
 const client = new Client({
@@ -132,7 +133,7 @@ async function registerCommands(commands) {
 }
 
 // Bot ready event
-client.once('clientReady', async () => {
+client.once('ready', async () => {
   console.log(`🤖 ${client.user.tag} is online!`);
   
   // Load bot status from database
@@ -207,6 +208,9 @@ client.once('clientReady', async () => {
   const { scheduleMidnightReset, scheduleInactivityCheck } = require('./utils/activityScheduler');
   scheduleMidnightReset(client);
   scheduleInactivityCheck(client);
+
+  // Initialize player list tracker
+  initializePlayerListTracker(client);
   
   // Auto-start music if MusicChannelID is configured
   if (process.env.MusicChannelID) {
@@ -292,9 +296,14 @@ client.on('interactionCreate', async (interaction) => {
 
 // Initialize bot
 async function start() {
+  console.log('🔄 Starting bot...');
+  console.log('🔄 Connecting to database...');
   await connectDatabase();
+  console.log('🔄 Loading events...');
   loadEvents();
+  console.log('🔄 Logging in to Discord...');
   await client.login(process.env.BotToken);
+  console.log('🔄 Login complete, waiting for ready event...');
 }
 
 start();

@@ -57,12 +57,10 @@ async function updateTicketPanel(client) {
 
     // Try to edit existing message, or create new one
     if (config.ticketPanelMessageId) {
-      console.log(`🔍 Checking for existing ticket panel message: ${config.ticketPanelMessageId}`);
       const message = await channel.messages.fetch(config.ticketPanelMessageId).catch(() => null);
       
       if (message) {
         await message.edit({ embeds: [embed], components: [row] });
-        console.log('✅ Ticket panel updated');
         return;
       } else {
         console.log('🎫 Ticket panel message was deleted, creating a new one...');

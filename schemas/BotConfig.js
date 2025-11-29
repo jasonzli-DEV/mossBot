@@ -69,6 +69,14 @@ const botConfigSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  playerListChannelId: {
+    type: String,
+    default: null,
+  },
+  lastPlayerListMessageId: {
+    type: String,
+    default: null,
+  },
 }, {
   timestamps: true,
 });

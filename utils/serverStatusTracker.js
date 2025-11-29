@@ -125,7 +125,6 @@ async function updateServerStatusDashboard(client) {
 
     // Try to edit existing message, or create new one
     if (config.serverStatusMessageId) {
-      console.log(`🔍 Checking for existing server status message: ${config.serverStatusMessageId}`);
       const message = await channel.messages.fetch(config.serverStatusMessageId).catch(() => null);
       
       if (message) {
