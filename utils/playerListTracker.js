@@ -1,5 +1,6 @@
 const BotConfig = require('../schemas/BotConfig');
 const UserActivity = require('../schemas/UserActivity');
+const LinkedAccount = require('../schemas/LinkedAccount');
 const { updateActivityDashboard } = require('./activityTracker');
 
 let isProcessingPlayerList = false;
@@ -15,21 +16,14 @@ function parsePlayerNames(content) {
     .filter(name => name.length > 0 && !name.includes('----'));
 }
 
-// Find Discord member by Minecraft username (matched via nickname)
-function findMemberByMinecraftName(guild, minecraftName) {
-  // Check nicknames first (case-insensitive)
-  const memberByNick = guild.members.cache.find(member => 
-    member.nickname && member.nickname.toLowerCase() === minecraftName.toLowerCase()
-  );
+// Find linked Discord user by Minecraft username (exact match, case-insensitive)
+async function findLinkedUser(guildId, minecraftName) {
+  const linkedAccount = await LinkedAccount.findOne({
+    guildId: guildId,
+    minecraftUsernameLower: minecraftName.toLowerCase(),
+  }).maxTimeMS(5000);
   
-  if (memberByNick) return memberByNick;
-  
-  // Fallback to username check
-  const memberByUsername = guild.members.cache.find(member =>
-    member.user.username.toLowerCase() === minecraftName.toLowerCase()
-  );
-  
-  return memberByUsername;
+  return linkedAccount;
 }
 
 // Process the collected player list
@@ -38,27 +32,30 @@ async function processPlayerList(guild, playerNames, client) {
     const now = new Date();
     const onlineUserIds = new Set();
 
-    // Make sure we have all guild members cached
-    await guild.members.fetch();
-
-    // Find Discord members for each player
+    // Find linked Discord users for each player
     for (const playerName of playerNames) {
-      const member = findMemberByMinecraftName(guild, playerName);
+      const linkedAccount = await findLinkedUser(guild.id, playerName);
       
-      // Only track if member exists in the guild and is not a bot
-      if (member && member.guild.id === guild.id && !member.user.bot) {
-        onlineUserIds.add(member.id);
+      // Only track if user has a linked account
+      if (linkedAccount) {
+        onlineUserIds.add(linkedAccount.userId);
         
         // Update or create user activity
         let activity = await UserActivity.findOne({
           guildId: guild.id,
-          userId: member.id,
+          userId: linkedAccount.userId,
         }).maxTimeMS(5000);
 
         if (!activity) {
+          // Get the Discord member to get their display name
+          const member = await guild.members.fetch(linkedAccount.userId).catch(() => null);
+          const displayName = member ? member.displayName : 'Unknown';
+          
           activity = await UserActivity.create({
             guildId: guild.id,
-            userId: member.id,
+            userId: linkedAccount.userId,
+            username: displayName,
+            minecraftUsername: linkedAccount.minecraftUsername,
             status: 'online',
             lastOnline: now,
             currentSessionStart: now,
@@ -70,19 +67,27 @@ async function processPlayerList(guild, playerNames, client) {
             activity.currentSessionStart = now;
           }
           activity.lastOnline = now;
+          // Update minecraft username in case it changed (re-linked)
+          activity.minecraftUsername = linkedAccount.minecraftUsername;
           await activity.save();
         }
       }
     }
 
-    // Mark users as offline if they're not in the player list
-    const allActivities = await UserActivity.find({
+    // Mark linked users as offline if they're not in the player list
+    // Only check users who have linked accounts
+    const allLinkedAccounts = await LinkedAccount.find({
       guildId: guild.id,
-      status: 'online',
     }).maxTimeMS(10000);
 
-    for (const activity of allActivities) {
-      if (!onlineUserIds.has(activity.userId)) {
+    for (const linkedAccount of allLinkedAccounts) {
+      const activity = await UserActivity.findOne({
+        guildId: guild.id,
+        userId: linkedAccount.userId,
+        status: 'online',
+      }).maxTimeMS(5000);
+
+      if (activity && !onlineUserIds.has(linkedAccount.userId)) {
         // User is no longer online, calculate session time
         if (activity.currentSessionStart) {
           const sessionDuration = now - activity.currentSessionStart;

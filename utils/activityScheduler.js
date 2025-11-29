@@ -1,5 +1,6 @@
 const UserActivity = require('../schemas/UserActivity');
 const BotConfig = require('../schemas/BotConfig');
+const LinkedAccount = require('../schemas/LinkedAccount');
 
 // Reset daily activity for all users at midnight Eastern Time
 async function resetDailyActivity(client) {
@@ -38,8 +39,15 @@ async function checkInactiveUsers(client) {
       const moderatorChannel = guild.channels.cache.get(config.moderatorChannelId);
       if (!moderatorChannel) continue;
 
-      // Get all user activities for this guild
-      const activities = await UserActivity.find({ guildId: guild.id }).maxTimeMS(10000);
+      // Get all linked accounts for this guild
+      const linkedAccounts = await LinkedAccount.find({ guildId: guild.id }).maxTimeMS(5000);
+      const linkedUserIds = linkedAccounts.map(la => la.userId);
+
+      // Get all user activities for linked users in this guild
+      const activities = await UserActivity.find({ 
+        guildId: guild.id,
+        userId: { $in: linkedUserIds }
+      }).maxTimeMS(10000);
 
       for (const activity of activities) {
         const lastOnlineTime = activity.lastOnline ? activity.lastOnline.getTime() : 0;
@@ -57,10 +65,13 @@ async function checkInactiveUsers(client) {
 
         // Send DM to user
         try {
+          const linkedAccount = linkedAccounts.find(la => la.userId === activity.userId);
+          const mcName = linkedAccount ? linkedAccount.minecraftUsername : 'your linked account';
+          
           await member.send(
             `⏰ **Inactivity Reminder**\n\n` +
             `You haven't been online in **${weeksInactive} week${weeksInactive > 1 ? 's' : ''}** in **${guild.name}**!\n\n` +
-            `Don't forget to mark yourself as online using \`/online\` to track your activity time.\n\n` +
+            `Your linked Minecraft account: **${mcName}**\n\n` +
             `Stay active to remain part of the community! 🎮`
           );
         } catch (error) {

@@ -11,7 +11,11 @@ const userActivitySchema = new mongoose.Schema({
   },
   username: {
     type: String,
-    required: true,
+    default: 'Unknown',
+  },
+  minecraftUsername: {
+    type: String,
+    default: null,
   },
   status: {
     type: String,

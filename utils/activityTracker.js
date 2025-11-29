@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const UserActivity = require('../schemas/UserActivity');
 const BotConfig = require('../schemas/BotConfig');
+const LinkedAccount = require('../schemas/LinkedAccount');
 
 // Helper function to format time
 function formatTime(milliseconds) {
@@ -75,7 +76,14 @@ async function updateActivityDashboard(client) {
       });
     }
 
-    const activities = await UserActivity.find({ guildId: guild.id })
+    // Get only linked users' activities
+    const linkedAccounts = await LinkedAccount.find({ guildId: guild.id }).maxTimeMS(5000);
+    const linkedUserIds = linkedAccounts.map(la => la.userId);
+
+    const activities = await UserActivity.find({ 
+      guildId: guild.id,
+      userId: { $in: linkedUserIds }
+    })
       .sort({ status: -1, monthlyOnlineTime: -1 })
       .limit(20)
       .maxTimeMS(5000);
@@ -84,14 +92,14 @@ async function updateActivityDashboard(client) {
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('📊 Activity Dashboard')
-      .setDescription('Real-time activity tracking for server members')
+      .setDescription('Real-time Minecraft activity tracking for linked members\nUse `/link` to link your Minecraft account!')
       .setTimestamp()
       .setFooter({ text: 'Last updated' });
 
     if (activities.length === 0) {
       embed.addFields({ 
         name: 'No Activity Data', 
-        value: 'No members have checked in yet. Use `/online` to start tracking!',
+        value: 'No linked members have played yet.\nUse `/link <minecraft_username>` to start tracking!',
         inline: false 
       });
     } else {
@@ -100,8 +108,17 @@ async function updateActivityDashboard(client) {
 
       for (const activity of activities) {
         const statusIcon = activity.status === 'online' ? '🟢' : '🔴';
-        const user = await client.users.fetch(activity.userId).catch(() => null);
-        const username = user ? user.tag : activity.username;
+        
+        // Get member for display name
+        const member = await guild.members.fetch(activity.userId).catch(() => null);
+        const displayName = member ? member.displayName : activity.username;
+        
+        // Get linked account for Minecraft username
+        const linkedAccount = linkedAccounts.find(la => la.userId === activity.userId);
+        const minecraftName = linkedAccount ? linkedAccount.minecraftUsername : activity.minecraftUsername || 'Unknown';
+        
+        // Format: DisplayName | MinecraftIGN
+        const formattedName = `${displayName} | ${minecraftName}`;
 
         // Calculate current session time if online
         let currentTime = 0;
@@ -113,7 +130,7 @@ async function updateActivityDashboard(client) {
         const weekTime = formatTime(activity.weeklyOnlineTime + currentTime);
         const monthTime = formatTime(activity.monthlyOnlineTime + currentTime);
 
-        const userLine = `${statusIcon} **${username}**\n` +
+        const userLine = `${statusIcon} **${formattedName}**\n` +
                         `└ Day: ${dayTime} | Week: ${weekTime} | Month: ${monthTime}\n\n`;
 
         if (activity.status === 'online') {
