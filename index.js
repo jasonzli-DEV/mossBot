@@ -205,9 +205,10 @@ client.once('ready', async () => {
   }
 
   // Initialize activity schedulers
-  const { scheduleMidnightReset, scheduleInactivityCheck } = require('./utils/activityScheduler');
+  const { scheduleMidnightReset, scheduleInactivityCheck, scheduleOnlineActivityIncrement } = require('./utils/activityScheduler');
   scheduleMidnightReset(client);
   scheduleInactivityCheck(client);
+  scheduleOnlineActivityIncrement(client);
 
   // Initialize player list tracker
   initializePlayerListTracker(client);

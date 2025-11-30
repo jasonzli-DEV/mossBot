@@ -1,3 +1,35 @@
+// Increment online user activity times every second
+async function incrementOnlineActivityTimes(client) {
+  try {
+    for (const guild of client.guilds.cache.values()) {
+      // Only consider linked users
+      const linkedAccounts = await LinkedAccount.find({ guildId: guild.id }).maxTimeMS(5000);
+      const linkedUserIds = linkedAccounts.map(la => la.userId);
+      // Find all online activities
+      const onlineActivities = await UserActivity.find({
+        guildId: guild.id,
+        userId: { $in: linkedUserIds },
+        status: 'online',
+      }).maxTimeMS(10000);
+      for (const activity of onlineActivities) {
+        activity.dailyOnlineTime = (activity.dailyOnlineTime || 0) + 1000;
+        activity.weeklyOnlineTime = (activity.weeklyOnlineTime || 0) + 1000;
+        activity.monthlyOnlineTime = (activity.monthlyOnlineTime || 0) + 1000;
+        activity.totalOnlineTime = (activity.totalOnlineTime || 0) + 1000;
+        await activity.save();
+      }
+    }
+  } catch (error) {
+    console.error('Error incrementing online activity times:', error);
+  }
+}
+
+function scheduleOnlineActivityIncrement(client) {
+  setInterval(() => {
+    incrementOnlineActivityTimes(client);
+  }, 1000);
+  console.log('⏰ Online activity increment scheduler initialized');
+}
 const UserActivity = require('../schemas/UserActivity');
 const BotConfig = require('../schemas/BotConfig');
 const LinkedAccount = require('../schemas/LinkedAccount');
@@ -133,4 +165,5 @@ module.exports = {
   checkInactiveUsers,
   scheduleMidnightReset,
   scheduleInactivityCheck,
+  scheduleOnlineActivityIncrement,
 };
