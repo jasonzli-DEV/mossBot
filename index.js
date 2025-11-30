@@ -181,10 +181,10 @@ client.once('ready', async () => {
     await updateActivityDashboard(client);
     console.log('📊 Activity dashboard initialized');
     
-    // Update dashboard every second
+    // Update dashboard every 30 seconds
     setInterval(async () => {
       await updateActivityDashboard(client);
-    }, 1000);
+    }, 30000);
   }
   
   // Initialize server status dashboard
