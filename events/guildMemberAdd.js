@@ -9,7 +9,7 @@ module.exports = {
     if (welcomeChannelId) {
       const channel = member.guild.channels.cache.get(welcomeChannelId);
       if (channel) {
-        await channel.send(`Welcome to the server, ${member}! 🎉`);
+        await channel.send(`Welcome to the server, ${member}! You are member number ${member.guild.memberCount}! 🎉`);
       }
     }
   },
