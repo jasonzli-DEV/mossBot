@@ -35,22 +35,15 @@ async function processPlayerList(guild, playerNames, client) {
     // Find linked Discord users for each player
     for (const playerName of playerNames) {
       const linkedAccount = await findLinkedUser(guild.id, playerName);
-      
-      // Only track if user has a linked account
       if (linkedAccount) {
         onlineUserIds.add(linkedAccount.userId);
-        
-        // Update or create user activity
         let activity = await UserActivity.findOne({
           guildId: guild.id,
           userId: linkedAccount.userId,
         }).maxTimeMS(5000);
-
         if (!activity) {
-          // Get the Discord member to get their display name
           const member = await guild.members.fetch(linkedAccount.userId).catch(() => null);
           const displayName = member ? member.displayName : 'Unknown';
-          
           activity = await UserActivity.create({
             guildId: guild.id,
             userId: linkedAccount.userId,
@@ -59,15 +52,22 @@ async function processPlayerList(guild, playerNames, client) {
             status: 'online',
             lastOnline: now,
             currentSessionStart: now,
+            totalOnlineTime: 0,
+            dailyOnlineTime: 0,
+            weeklyOnlineTime: 0,
+            monthlyOnlineTime: 0,
+            lastDailyReset: now,
+            lastWeeklyReset: now,
+            lastMonthlyReset: now,
+            sessionCount: 1,
           });
         } else {
-          // If user was offline, start new session
           if (activity.status === 'offline') {
             activity.status = 'online';
             activity.currentSessionStart = now;
+            activity.sessionCount = (activity.sessionCount || 0) + 1;
           }
           activity.lastOnline = now;
-          // Update minecraft username in case it changed (re-linked)
           activity.minecraftUsername = linkedAccount.minecraftUsername;
           await activity.save();
         }
@@ -81,25 +81,44 @@ async function processPlayerList(guild, playerNames, client) {
     }).maxTimeMS(10000);
 
     for (const linkedAccount of allLinkedAccounts) {
-      const activity = await UserActivity.findOne({
+      let activity = await UserActivity.findOne({
         guildId: guild.id,
         userId: linkedAccount.userId,
-        status: 'online',
       }).maxTimeMS(5000);
-
-      if (activity && !onlineUserIds.has(linkedAccount.userId)) {
-        // User is no longer online, calculate session time
+      if (!activity) {
+        // Create offline activity for users who have never been online
+        const member = await guild.members.fetch(linkedAccount.userId).catch(() => null);
+        const displayName = member ? member.displayName : 'Unknown';
+        activity = await UserActivity.create({
+          guildId: guild.id,
+          userId: linkedAccount.userId,
+          username: displayName,
+          minecraftUsername: linkedAccount.minecraftUsername,
+          status: 'offline',
+          lastOnline: null,
+          currentSessionStart: null,
+          totalOnlineTime: 0,
+          dailyOnlineTime: 0,
+          weeklyOnlineTime: 0,
+          monthlyOnlineTime: 0,
+          lastDailyReset: now,
+          lastWeeklyReset: now,
+          lastMonthlyReset: now,
+          sessionCount: 0,
+        });
+      }
+      if (activity.status === 'online' && !onlineUserIds.has(linkedAccount.userId)) {
+        // User is no longer online, calculate session time in ms
         if (activity.currentSessionStart) {
           const sessionDuration = now - activity.currentSessionStart;
-          const sessionMinutes = Math.floor(sessionDuration / (1000 * 60));
-          
-          activity.dailyOnlineTime = (activity.dailyOnlineTime || 0) + sessionMinutes;
-          activity.weeklyOnlineTime = (activity.weeklyOnlineTime || 0) + sessionMinutes;
-          activity.monthlyOnlineTime = (activity.monthlyOnlineTime || 0) + sessionMinutes;
+          activity.dailyOnlineTime = (activity.dailyOnlineTime || 0) + sessionDuration;
+          activity.weeklyOnlineTime = (activity.weeklyOnlineTime || 0) + sessionDuration;
+          activity.monthlyOnlineTime = (activity.monthlyOnlineTime || 0) + sessionDuration;
+          activity.totalOnlineTime = (activity.totalOnlineTime || 0) + sessionDuration;
         }
-        
         activity.status = 'offline';
         activity.currentSessionStart = null;
+        activity.lastOffline = now;
         await activity.save();
       }
     }
