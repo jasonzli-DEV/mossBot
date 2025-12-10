@@ -1,23 +1,36 @@
-// Increment online user activity times every second
+const UserActivity = require('../schemas/UserActivity');
+const BotConfig = require('../schemas/BotConfig');
+const LinkedAccount = require('../schemas/LinkedAccount');
+
+// Track if daily reset already happened today
+let lastResetDate = null;
+
+// Increment online user activity times every 30 seconds
 async function incrementOnlineActivityTimes(client) {
   try {
     for (const guild of client.guilds.cache.values()) {
       // Only consider linked users
-      const linkedAccounts = await LinkedAccount.find({ guildId: guild.id }).maxTimeMS(5000);
+      const linkedAccounts = await LinkedAccount.find({ guildId: guild.id }).maxTimeMS(10000);
       const linkedUserIds = linkedAccounts.map(la => la.userId);
-      // Find all online activities
-      const onlineActivities = await UserActivity.find({
-        guildId: guild.id,
-        userId: { $in: linkedUserIds },
-        status: 'online',
-      }).maxTimeMS(10000);
-      for (const activity of onlineActivities) {
-        activity.dailyOnlineTime = (activity.dailyOnlineTime || 0) + 1000;
-        activity.weeklyOnlineTime = (activity.weeklyOnlineTime || 0) + 1000;
-        activity.monthlyOnlineTime = (activity.monthlyOnlineTime || 0) + 1000;
-        activity.totalOnlineTime = (activity.totalOnlineTime || 0) + 1000;
-        await activity.save();
-      }
+      
+      if (linkedUserIds.length === 0) continue;
+      
+      // Find all online activities and increment by 30 seconds (30000ms)
+      await UserActivity.updateMany(
+        {
+          guildId: guild.id,
+          userId: { $in: linkedUserIds },
+          status: 'online',
+        },
+        {
+          $inc: {
+            dailyOnlineTime: 30000,
+            weeklyOnlineTime: 30000,
+            monthlyOnlineTime: 30000,
+            totalOnlineTime: 30000,
+          }
+        }
+      ).maxTimeMS(10000);
     }
   } catch (error) {
     console.error('Error incrementing online activity times:', error);
@@ -25,14 +38,12 @@ async function incrementOnlineActivityTimes(client) {
 }
 
 function scheduleOnlineActivityIncrement(client) {
+  // Increment every 30 seconds to reduce DB load
   setInterval(() => {
     incrementOnlineActivityTimes(client);
-  }, 1000);
-  console.log('⏰ Online activity increment scheduler initialized');
+  }, 30000);
+  console.log('⏰ Online activity increment scheduler initialized (every 30s)');
 }
-const UserActivity = require('../schemas/UserActivity');
-const BotConfig = require('../schemas/BotConfig');
-const LinkedAccount = require('../schemas/LinkedAccount');
 
 // Reset daily activity for all users at midnight Eastern Time
 async function resetDailyActivity(client) {
@@ -134,9 +145,11 @@ function scheduleMidnightReset(client) {
     
     // Convert to Eastern Time
     const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const todayDate = etTime.toDateString();
     
-    // Check if it's midnight (00:00) in ET
-    if (etTime.getHours() === 0 && etTime.getMinutes() === 0) {
+    // Check if it's midnight (00:00) in ET and we haven't reset today
+    if (etTime.getHours() === 0 && lastResetDate !== todayDate) {
+      lastResetDate = todayDate;
       resetDailyActivity(client);
     }
   }, 60 * 1000); // Check every minute

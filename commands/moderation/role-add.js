@@ -19,13 +19,20 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
   async execute(interaction, client) {
-    const targetUser = interaction.options.getUser('user');
+    const target = interaction.options.getUser('target');
     const role = interaction.options.getRole('role');
+
+    if (!target || !role) {
+      return interaction.reply({ 
+        content: '❌ Invalid target user or role!', 
+        flags: [4096] 
+      });
+    }
 
     const SUPER_USER_ID = '1288337361490411542';
 
     // Check if target is super user
-    if (targetUser.id === SUPER_USER_ID) {
+    if (target.id === SUPER_USER_ID) {
       return interaction.reply({ 
         content: '❌ You cannot modify roles of the super user!', 
         flags: [4096] 
@@ -78,8 +85,7 @@ module.exports = {
       await member.roles.add(role);
 
       await interaction.reply({
-        content: `✅ Successfully added **${role.name}** to **${target.tag}**`,
-        ephemeral: false
+        content: `✅ Successfully added **${role.name}** to **${target.tag}**`
       });
 
     } catch (error) {
