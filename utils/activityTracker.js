@@ -16,26 +16,25 @@ function formatTime(milliseconds) {
   return `${seconds}s`;
 }
 
-// Helper to get date string in Eastern Time
-function getETDateString(date) {
-  return new Date(date).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+// Helper to get date parts in Eastern Time
+function getETDateParts(date) {
+  const etDateStr = new Date(date).toLocaleString('en-US', { timeZone: 'America/New_York' });
+  const etDate = new Date(etDateStr);
+  return {
+    year: etDate.getFullYear(),
+    month: etDate.getMonth(),
+    day: etDate.getDate(),
+    dayOfWeek: etDate.getDay()
+  };
 }
 
-// Helper to get month/year string in Eastern Time
-function getETMonthYear(date) {
-  const d = new Date(date);
-  const month = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'numeric' });
-  const year = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', year: 'numeric' });
-  return `${month}-${year}`;
-}
-
-// Helper to get week number in Eastern Time (ISO week)
-function getETWeek(date) {
-  const d = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const week1 = new Date(d.getFullYear(), 0, 4);
-  return 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+// Helper to get week number in Eastern Time
+function getETWeekNumber(date) {
+  const parts = getETDateParts(date);
+  const etDate = new Date(parts.year, parts.month, parts.day);
+  etDate.setDate(etDate.getDate() + 3 - ((etDate.getDay() + 6) % 7));
+  const week1 = new Date(etDate.getFullYear(), 0, 4);
+  return 1 + Math.round(((etDate - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
 }
 
 // Reset time periods if needed (all in Eastern Time)
@@ -44,27 +43,29 @@ function checkAndResetPeriods(activity) {
   let updated = false;
 
   // Check daily reset (new day in ET)
-  const nowDateET = getETDateString(now);
-  const lastDailyDateET = getETDateString(activity.lastDailyReset);
-  if (nowDateET !== lastDailyDateET) {
+  const nowParts = getETDateParts(now);
+  const lastDailyParts = getETDateParts(activity.lastDailyReset);
+  
+  if (nowParts.year !== lastDailyParts.year || 
+      nowParts.month !== lastDailyParts.month || 
+      nowParts.day !== lastDailyParts.day) {
     activity.dailyOnlineTime = 0;
     activity.lastDailyReset = now;
     updated = true;
   }
 
   // Check weekly reset (new week in ET)
-  const nowWeekET = getETWeek(now);
-  const lastWeekET = getETWeek(activity.lastWeeklyReset);
-  if (nowWeekET !== lastWeekET || now.getFullYear() !== new Date(activity.lastWeeklyReset).getFullYear()) {
+  const nowWeek = getETWeekNumber(now);
+  const lastWeek = getETWeekNumber(activity.lastWeeklyReset);
+  
+  if (nowWeek !== lastWeek || nowParts.year !== getETDateParts(activity.lastWeeklyReset).year) {
     activity.weeklyOnlineTime = 0;
     activity.lastWeeklyReset = now;
     updated = true;
   }
 
   // Check monthly reset (new month in ET)
-  const nowMonthET = getETMonthYear(now);
-  const lastMonthET = getETMonthYear(activity.lastMonthlyReset);
-  if (nowMonthET !== lastMonthET) {
+  if (nowParts.year !== lastDailyParts.year || nowParts.month !== getETDateParts(activity.lastMonthlyReset).month) {
     activity.monthlyOnlineTime = 0;
     activity.lastMonthlyReset = now;
     updated = true;
