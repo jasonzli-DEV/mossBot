@@ -48,17 +48,32 @@ function scheduleOnlineActivityIncrement(client) {
 // Reset daily activity for all users at midnight Eastern Time
 async function resetDailyActivity(client) {
   try {
-    const result = await UserActivity.updateMany(
-      {},
+    const now = new Date();
+    
+    // For online users, reset their session start to now so yesterday's time isn't counted
+    await UserActivity.updateMany(
+      { status: 'online' },
       {
         $set: {
           dailyOnlineTime: 0,
-          lastDailyReset: new Date(),
+          lastDailyReset: now,
+          currentSessionStart: now, // Reset session start so today's time starts fresh
+        },
+      }
+    );
+    
+    // For offline users, just reset daily time
+    const result = await UserActivity.updateMany(
+      { status: 'offline' },
+      {
+        $set: {
+          dailyOnlineTime: 0,
+          lastDailyReset: now,
         },
       }
     );
 
-    console.log(`🕛 Daily activity reset for ${result.modifiedCount} users`);
+    console.log(`🕛 Daily activity reset completed`);
   } catch (error) {
     console.error('Error resetting daily activity:', error);
   }
