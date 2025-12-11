@@ -108,14 +108,7 @@ async function processPlayerList(guild, playerNames, client) {
         });
       }
       if (activity.status === 'online' && !onlineUserIds.has(linkedAccount.userId)) {
-        // User is no longer online, calculate session time in ms
-        if (activity.currentSessionStart) {
-          const sessionDuration = now - activity.currentSessionStart;
-          activity.dailyOnlineTime = (activity.dailyOnlineTime || 0) + sessionDuration;
-          activity.weeklyOnlineTime = (activity.weeklyOnlineTime || 0) + sessionDuration;
-          activity.monthlyOnlineTime = (activity.monthlyOnlineTime || 0) + sessionDuration;
-          activity.totalOnlineTime = (activity.totalOnlineTime || 0) + sessionDuration;
-        }
+        // User is no longer online - just mark offline (increment scheduler handles time)
         activity.status = 'offline';
         activity.currentSessionStart = null;
         activity.lastOffline = now;

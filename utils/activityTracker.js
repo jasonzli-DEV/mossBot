@@ -142,15 +142,10 @@ async function updateActivityDashboard(client) {
         // Format: DisplayName | MinecraftIGN
         const formattedName = `${displayName} | ${minecraftName}`;
 
-        // Calculate current session time if online
-        let currentTime = 0;
-        if (activity.status === 'online' && activity.currentSessionStart) {
-          currentTime = Date.now() - new Date(activity.currentSessionStart).getTime();
-        }
-
-        const dayTime = formatTime(activity.dailyOnlineTime + currentTime);
-        const weekTime = formatTime(activity.weeklyOnlineTime + currentTime);
-        const monthTime = formatTime(activity.monthlyOnlineTime + currentTime);
+        // Display times directly from database (increment scheduler handles updates)
+        const dayTime = formatTime(activity.dailyOnlineTime);
+        const weekTime = formatTime(activity.weeklyOnlineTime);
+        const monthTime = formatTime(activity.monthlyOnlineTime);
 
         const userLine = `${statusIcon} **${formattedName}**\n` +
                         `└ Day: ${dayTime} | Week: ${weekTime} | Month: ${monthTime}\n\n`;
