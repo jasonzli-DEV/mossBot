@@ -19,13 +19,13 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
   async execute(interaction, client) {
-    const targetUser = interaction.options.getUser('user');
+    const target = interaction.options.getUser('target');
     const role = interaction.options.getRole('role');
 
     const SUPER_USER_ID = '1288337361490411542';
 
     // Check if target is super user
-    if (targetUser.id === SUPER_USER_ID) {
+    if (target.id === SUPER_USER_ID) {
       return interaction.reply({ 
         content: '❌ You cannot modify roles of the super user!', 
         flags: [4096] 
