@@ -1,9 +1,79 @@
 const UserActivity = require('../schemas/UserActivity');
 const BotConfig = require('../schemas/BotConfig');
 const LinkedAccount = require('../schemas/LinkedAccount');
+const { checkAndResetPeriods } = require('./activityTracker');
 
 // Track if daily reset already happened today
 let lastResetDate = null;
+let lastWeeklyResetDate = null;
+let lastMonthlyResetDate = null;
+
+// Check and perform any missed resets on startup
+async function checkMissedResets(client) {
+  try {
+    const now = new Date();
+    const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const todayDate = etTime.toDateString();
+    
+    console.log('🔍 Checking for missed resets...');
+    
+    // Check all users for missed resets
+    const activities = await UserActivity.find({});
+    
+    for (const activity of activities) {
+      let needsSave = false;
+      
+      // Check if daily reset was missed
+      if (activity.lastDailyReset) {
+        const lastDailyET = new Date(activity.lastDailyReset.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        if (lastDailyET.toDateString() !== todayDate) {
+          activity.dailyOnlineTime = 0;
+          activity.lastDailyReset = now;
+          needsSave = true;
+          console.log(`  📅 Missed daily reset for ${activity.username}`);
+        }
+      }
+      
+      // Check if weekly reset was missed (if it's past Monday and last reset was before this Monday)
+      if (activity.lastWeeklyReset) {
+        const lastWeeklyET = new Date(activity.lastWeeklyReset.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const daysSinceReset = Math.floor((etTime - lastWeeklyET) / (24 * 60 * 60 * 1000));
+        
+        // If more than 7 days since last weekly reset, reset it
+        if (daysSinceReset >= 7) {
+          activity.weeklyOnlineTime = activity.dailyOnlineTime; // Keep today's progress
+          activity.lastWeeklyReset = now;
+          needsSave = true;
+          console.log(`  📅 Missed weekly reset for ${activity.username}`);
+        }
+      }
+      
+      // Check if monthly reset was missed
+      if (activity.lastMonthlyReset) {
+        const lastMonthlyET = new Date(activity.lastMonthlyReset.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        if (lastMonthlyET.getMonth() !== etTime.getMonth() || lastMonthlyET.getFullYear() !== etTime.getFullYear()) {
+          activity.monthlyOnlineTime = activity.weeklyOnlineTime; // Keep this week's progress
+          activity.lastMonthlyReset = now;
+          needsSave = true;
+          console.log(`  📅 Missed monthly reset for ${activity.username}`);
+        }
+      }
+      
+      if (needsSave) {
+        await activity.save();
+      }
+    }
+    
+    // Set the tracking variables to today so we don't reset again
+    lastResetDate = todayDate;
+    lastWeeklyResetDate = todayDate;
+    lastMonthlyResetDate = todayDate;
+    
+    console.log('✅ Missed reset check completed');
+  } catch (error) {
+    console.error('Error checking missed resets:', error);
+  }
+}
 
 // Increment online user activity times every 30 seconds
 async function incrementOnlineActivityTimes(client) {
@@ -76,6 +146,50 @@ async function resetDailyActivity(client) {
     console.log(`🕛 Daily activity reset completed`);
   } catch (error) {
     console.error('Error resetting daily activity:', error);
+  }
+}
+
+// Reset weekly activity for all users at Monday midnight Eastern Time
+async function resetWeeklyActivity(client) {
+  try {
+    const now = new Date();
+    
+    // Reset weekly time for all users
+    await UserActivity.updateMany(
+      {},
+      {
+        $set: {
+          weeklyOnlineTime: 0,
+          lastWeeklyReset: now,
+        },
+      }
+    );
+
+    console.log(`📅 Weekly activity reset completed`);
+  } catch (error) {
+    console.error('Error resetting weekly activity:', error);
+  }
+}
+
+// Reset monthly activity for all users at 1st of month midnight Eastern Time
+async function resetMonthlyActivity(client) {
+  try {
+    const now = new Date();
+    
+    // Reset monthly time for all users
+    await UserActivity.updateMany(
+      {},
+      {
+        $set: {
+          monthlyOnlineTime: 0,
+          lastMonthlyReset: now,
+        },
+      }
+    );
+
+    console.log(`📆 Monthly activity reset completed`);
+  } catch (error) {
+    console.error('Error resetting monthly activity:', error);
   }
 }
 
@@ -161,15 +275,33 @@ function scheduleMidnightReset(client) {
     // Convert to Eastern Time
     const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
     const todayDate = etTime.toDateString();
+    const dayOfWeek = etTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const dayOfMonth = etTime.getDate();
     
-    // Check if it's midnight (00:00) in ET and we haven't reset today
-    if (etTime.getHours() === 0 && lastResetDate !== todayDate) {
-      lastResetDate = todayDate;
-      resetDailyActivity(client);
+    // Check if it's within the first 5 minutes after midnight (00:00-00:04) in ET
+    // This gives a 5-minute window to catch the reset
+    if (etTime.getHours() === 0 && etTime.getMinutes() < 5) {
+      // Daily reset (every day at midnight)
+      if (lastResetDate !== todayDate) {
+        lastResetDate = todayDate;
+        resetDailyActivity(client);
+      }
+      
+      // Weekly reset (every Monday at midnight)
+      if (dayOfWeek === 1 && lastWeeklyResetDate !== todayDate) {
+        lastWeeklyResetDate = todayDate;
+        resetWeeklyActivity(client);
+      }
+      
+      // Monthly reset (1st of month at midnight)
+      if (dayOfMonth === 1 && lastMonthlyResetDate !== todayDate) {
+        lastMonthlyResetDate = todayDate;
+        resetMonthlyActivity(client);
+      }
     }
   }, 60 * 1000); // Check every minute
 
-  console.log('🕛 Midnight ET reset scheduler initialized');
+  console.log('🕛 Midnight ET reset scheduler initialized (daily, weekly, monthly)');
 }
 
 // Schedule weekly inactivity check (every day at noon ET)
@@ -190,7 +322,10 @@ function scheduleInactivityCheck(client) {
 
 module.exports = {
   resetDailyActivity,
+  resetWeeklyActivity,
+  resetMonthlyActivity,
   checkInactiveUsers,
+  checkMissedResets,
   scheduleMidnightReset,
   scheduleInactivityCheck,
   scheduleOnlineActivityIncrement,

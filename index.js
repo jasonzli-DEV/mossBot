@@ -205,7 +205,11 @@ client.once('ready', async () => {
   }
 
   // Initialize activity schedulers
-  const { scheduleMidnightReset, scheduleInactivityCheck, scheduleOnlineActivityIncrement } = require('./utils/activityScheduler');
+  const { scheduleMidnightReset, scheduleInactivityCheck, scheduleOnlineActivityIncrement, checkMissedResets } = require('./utils/activityScheduler');
+  
+  // Check for any missed resets first (in case bot was offline at midnight)
+  await checkMissedResets(client);
+  
   scheduleMidnightReset(client);
   scheduleInactivityCheck(client);
   scheduleOnlineActivityIncrement(client);

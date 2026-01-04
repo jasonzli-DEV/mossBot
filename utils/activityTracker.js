@@ -65,7 +65,8 @@ function checkAndResetPeriods(activity) {
   }
 
   // Check monthly reset (new month in ET)
-  if (nowParts.year !== lastDailyParts.year || nowParts.month !== getETDateParts(activity.lastMonthlyReset).month) {
+  const lastMonthlyParts = getETDateParts(activity.lastMonthlyReset);
+  if (nowParts.year !== lastMonthlyParts.year || nowParts.month !== lastMonthlyParts.month) {
     activity.monthlyOnlineTime = 0;
     activity.lastMonthlyReset = now;
     updated = true;
