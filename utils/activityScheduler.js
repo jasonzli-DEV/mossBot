@@ -78,6 +78,8 @@ async function checkMissedResets(client) {
 // Increment online user activity times every 30 seconds
 async function incrementOnlineActivityTimes(client) {
   try {
+    const MAX_WEEKLY_MS = 7 * 24 * 60 * 60 * 1000; // 168 hours max
+    
     for (const guild of client.guilds.cache.values()) {
       // Only consider linked users
       const linkedAccounts = await LinkedAccount.find({ guildId: guild.id }).maxTimeMS(10000);
@@ -85,22 +87,29 @@ async function incrementOnlineActivityTimes(client) {
       
       if (linkedUserIds.length === 0) continue;
       
-      // Find all online activities and increment by 30 seconds (30000ms)
-      await UserActivity.updateMany(
-        {
-          guildId: guild.id,
-          userId: { $in: linkedUserIds },
-          status: 'online',
-        },
-        {
-          $inc: {
-            dailyOnlineTime: 30000,
-            weeklyOnlineTime: 30000,
-            monthlyOnlineTime: 30000,
-            totalOnlineTime: 30000,
-          }
+      // Find all online activities
+      const onlineActivities = await UserActivity.find({
+        guildId: guild.id,
+        userId: { $in: linkedUserIds },
+        status: 'online',
+      }).maxTimeMS(10000);
+      
+      for (const activity of onlineActivities) {
+        // Increment times
+        activity.dailyOnlineTime += 30000;
+        activity.weeklyOnlineTime += 30000;
+        activity.monthlyOnlineTime += 30000;
+        activity.totalOnlineTime += 30000;
+        
+        // If weekly exceeds max, push overflow to monthly and cap weekly
+        if (activity.weeklyOnlineTime > MAX_WEEKLY_MS) {
+          const overflow = activity.weeklyOnlineTime - MAX_WEEKLY_MS;
+          activity.monthlyOnlineTime += overflow;
+          activity.weeklyOnlineTime = MAX_WEEKLY_MS;
         }
-      ).maxTimeMS(10000);
+        
+        await activity.save();
+      }
     }
   } catch (error) {
     console.error('Error incrementing online activity times:', error);

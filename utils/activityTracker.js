@@ -158,20 +158,84 @@ async function updateActivityDashboard(client) {
         }
       }
 
+      // Discord embed fields have a 1024 character limit
+      // Split into multiple fields if needed
+      const MAX_FIELD_LENGTH = 1024;
+
       if (onlineUsers) {
-        embed.addFields({ 
-          name: '🟢 Online Members', 
-          value: onlineUsers || 'None',
-          inline: false 
-        });
+        if (onlineUsers.length <= MAX_FIELD_LENGTH) {
+          embed.addFields({ 
+            name: '🟢 Online Members', 
+            value: onlineUsers,
+            inline: false 
+          });
+        } else {
+          // Split into multiple fields
+          const lines = onlineUsers.split('\n\n').filter(l => l.trim());
+          let currentChunk = '';
+          let chunkIndex = 1;
+          
+          for (const line of lines) {
+            const lineWithBreak = line + '\n\n';
+            if ((currentChunk + lineWithBreak).length > MAX_FIELD_LENGTH) {
+              embed.addFields({ 
+                name: `🟢 Online Members ${chunkIndex > 1 ? `(${chunkIndex})` : ''}`, 
+                value: currentChunk || 'None',
+                inline: false 
+              });
+              currentChunk = lineWithBreak;
+              chunkIndex++;
+            } else {
+              currentChunk += lineWithBreak;
+            }
+          }
+          
+          if (currentChunk) {
+            embed.addFields({ 
+              name: `🟢 Online Members ${chunkIndex > 1 ? `(${chunkIndex})` : ''}`, 
+              value: currentChunk,
+              inline: false 
+            });
+          }
+        }
       }
 
       if (offlineUsers) {
-        embed.addFields({ 
-          name: '🔴 Offline Members', 
-          value: offlineUsers || 'None',
-          inline: false 
-        });
+        if (offlineUsers.length <= MAX_FIELD_LENGTH) {
+          embed.addFields({ 
+            name: '🔴 Offline Members', 
+            value: offlineUsers,
+            inline: false 
+          });
+        } else {
+          // Split into multiple fields
+          const lines = offlineUsers.split('\n\n').filter(l => l.trim());
+          let currentChunk = '';
+          let chunkIndex = 1;
+          
+          for (const line of lines) {
+            const lineWithBreak = line + '\n\n';
+            if ((currentChunk + lineWithBreak).length > MAX_FIELD_LENGTH) {
+              embed.addFields({ 
+                name: `🔴 Offline Members ${chunkIndex > 1 ? `(${chunkIndex})` : ''}`, 
+                value: currentChunk || 'None',
+                inline: false 
+              });
+              currentChunk = lineWithBreak;
+              chunkIndex++;
+            } else {
+              currentChunk += lineWithBreak;
+            }
+          }
+          
+          if (currentChunk) {
+            embed.addFields({ 
+              name: `🔴 Offline Members ${chunkIndex > 1 ? `(${chunkIndex})` : ''}`, 
+              value: currentChunk,
+              inline: false 
+            });
+          }
+        }
       }
     }
 
