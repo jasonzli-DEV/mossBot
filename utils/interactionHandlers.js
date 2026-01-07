@@ -94,14 +94,92 @@ async function handleOnboardingButton(interaction, client) {
   
   // Start onboarding
   if (customId === 'onboarding_start') {
-    // Initialize onboarding state for this user
-    onboardingState.set(interaction.user.id, { step: 1, timezone: null, minecraftUsername: null });
+    // Check if user has already completed steps
+    const existingTimezone = await UserTimezone.findOne({
+      guildId: interaction.guild.id,
+      userId: interaction.user.id,
+    });
+    
+    const existingAccount = await LinkedAccount.findOne({
+      guildId: interaction.guild.id,
+      userId: interaction.user.id,
+    });
+    
+    // If both steps are complete, show completion message
+    if (existingTimezone && existingAccount) {
+      const now = new Date();
+      const timeStr = now.toLocaleString('en-US', {
+        timeZone: existingTimezone.timezone,
+        weekday: 'long',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      
+      const embed = new EmbedBuilder()
+        .setColor(0x57F287)
+        .setTitle('✅ Already Onboarded!')
+        .setDescription(
+          `You've already completed the onboarding process!\n\n` +
+          `**Your Setup:**\n` +
+          `🕐 Timezone: ${existingTimezone.timezone}\n` +
+          `   Local time: ${timeStr}\n` +
+          `🎮 Minecraft: ${existingAccount.minecraftUsername}\n\n` +
+          `You have full access to the server!`
+        );
+      
+      await interaction.reply({
+        embeds: [embed],
+        ephemeral: true,
+      });
+      return;
+    }
     
     // Log to moderator channel
     await logToModeratorChannel(
       interaction.guild,
       `📋 **Onboarding Started**\n${interaction.user} (${interaction.user.tag}) has started the onboarding process.`
     );
+    
+    // If timezone exists, skip to step 2 (Minecraft account)
+    if (existingTimezone) {
+      onboardingState.set(interaction.user.id, { step: 2, timezone: existingTimezone.timezone, minecraftUsername: null });
+      
+      const now = new Date();
+      const timeStr = now.toLocaleString('en-US', {
+        timeZone: existingTimezone.timezone,
+        weekday: 'long',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('📋 Onboarding - Step 2 of 2')
+        .setDescription(
+          `✅ **Timezone already set!**\nYour local time: ${timeStr}\n\n` +
+          `**Link Your Minecraft Account**\n\nClick the button below to link your Minecraft account.`
+        )
+        .setFooter({ text: 'Step 1: ✅ Complete • Step 2: Minecraft Account' });
+      
+      const button = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('onboarding_link_minecraft')
+          .setLabel('🎮 Link Minecraft Account')
+          .setStyle(ButtonStyle.Primary)
+      );
+      
+      await interaction.reply({
+        embeds: [embed],
+        components: [button],
+        ephemeral: true,
+      });
+      return;
+    }
+    
+    // Start from step 1 (timezone)
+    onboardingState.set(interaction.user.id, { step: 1, timezone: null, minecraftUsername: null });
     
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
@@ -191,7 +269,7 @@ async function handleOnboardingButton(interaction, client) {
     const usernameInput = new TextInputBuilder()
       .setCustomId('minecraft_username')
       .setLabel('Minecraft Username')
-      .setPlaceholder('Enter your Minecraft username (case-sensitive)')
+      .setPlaceholder('Enter your Minecraft username (case-insensitive)')
       .setStyle(TextInputStyle.Short)
       .setRequired(true)
       .setMinLength(3)
