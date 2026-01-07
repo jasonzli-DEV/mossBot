@@ -231,6 +231,7 @@ client.on('interactionCreate', async (interaction) => {
   // Handle button interactions
   if (interaction.isButton()) {
     const { createTicket, closeTicket } = require('./utils/ticketSystem');
+    const { handleTimezoneButton, handleOnboardingButton } = require('./utils/interactionHandlers');
     const customId = interaction.customId;
 
     try {
@@ -246,8 +247,61 @@ client.on('interactionCreate', async (interaction) => {
         await closeTicket(interaction, ticketId);
         return;
       }
+      
+      // Handle timezone buttons
+      if (customId.startsWith('tz_')) {
+        await handleTimezoneButton(interaction);
+        return;
+      }
+      
+      // Handle onboarding buttons
+      if (customId.startsWith('onboarding_')) {
+        await handleOnboardingButton(interaction, client);
+        return;
+      }
     } catch (error) {
       console.error('Error handling button interaction:', error);
+    }
+    
+    return;
+  }
+  
+  // Handle select menu interactions
+  if (interaction.isStringSelectMenu()) {
+    const { handleTimezoneSelect, handleOnboardingSelect } = require('./utils/interactionHandlers');
+    const customId = interaction.customId;
+    
+    try {
+      // Handle timezone select
+      if (customId.startsWith('tz_select_')) {
+        await handleTimezoneSelect(interaction);
+        return;
+      }
+      
+      // Handle onboarding selects
+      if (customId.startsWith('onboarding_tz_select_')) {
+        await handleOnboardingSelect(interaction, client);
+        return;
+      }
+    } catch (error) {
+      console.error('Error handling select menu interaction:', error);
+    }
+    
+    return;
+  }
+  
+  // Handle modal submissions
+  if (interaction.isModalSubmit()) {
+    const { handleOnboardingModal } = require('./utils/interactionHandlers');
+    const customId = interaction.customId;
+    
+    try {
+      if (customId === 'onboarding_minecraft_modal') {
+        await handleOnboardingModal(interaction, client);
+        return;
+      }
+    } catch (error) {
+      console.error('Error handling modal submission:', error);
     }
     
     return;

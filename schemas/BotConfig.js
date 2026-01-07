@@ -77,6 +77,32 @@ const botConfigSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  // Onboarding settings
+  onboardingChannelId: {
+    type: String,
+    default: null,
+  },
+  onboardingMessageId: {
+    type: String,
+    default: null,
+  },
+  unverifiedRoleId: {
+    type: String,
+    default: null,
+  },
+  verifiedRoleId: {
+    type: String,
+    default: null,
+  },
+  // Auto-role settings
+  autoRoleId: {
+    type: String,
+    default: null,
+  },
+  autoRoleEnabled: {
+    type: Boolean,
+    default: false,
+  },
 }, {
   timestamps: true,
 });
