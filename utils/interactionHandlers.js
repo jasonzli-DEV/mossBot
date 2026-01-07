@@ -107,6 +107,36 @@ async function handleOnboardingButton(interaction, client) {
     
     // If both steps are complete, show completion message
     if (existingTimezone && existingAccount) {
+      // Ensure roles are properly assigned
+      const config = await BotConfig.findOne({ guildId: interaction.guild.id });
+      
+      if (config) {
+        const member = interaction.member;
+        let rolesUpdated = false;
+        
+        // Remove unverified role if it still exists
+        if (config.unverifiedRoleId) {
+          const unverifiedRole = interaction.guild.roles.cache.get(config.unverifiedRoleId);
+          if (unverifiedRole && member.roles.cache.has(unverifiedRole.id)) {
+            await member.roles.remove(unverifiedRole).catch(err => {
+              console.error('Failed to remove unverified role:', err);
+            });
+            rolesUpdated = true;
+          }
+        }
+        
+        // Add verified role if not already added
+        if (config.verifiedRoleId) {
+          const verifiedRole = interaction.guild.roles.cache.get(config.verifiedRoleId);
+          if (verifiedRole && !member.roles.cache.has(verifiedRole.id)) {
+            await member.roles.add(verifiedRole).catch(err => {
+              console.error('Failed to add verified role:', err);
+            });
+            rolesUpdated = true;
+          }
+        }
+      }
+      
       const now = new Date();
       const timeStr = now.toLocaleString('en-US', {
         timeZone: existingTimezone.timezone,
