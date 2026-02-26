@@ -80,7 +80,6 @@ async function createTempVoiceChannel(voiceState, creatorChannelId) {
 
     console.log(`🎤 Created temp voice channel for ${member.user.tag}`);
   } catch (error) {
-    console.error('Error creating temp voice channel:', error);
     // If the user left voice before we could move them, clean up the created channel
     if (error.code === 40032) {
       try {
@@ -89,10 +88,13 @@ async function createTempVoiceChannel(voiceState, creatorChannelId) {
           const channel = voiceState.guild.channels.cache.get(tempVoice.channelId);
           if (channel) await channel.delete('User left before being moved');
           await TempVoice.deleteOne({ channelId: tempVoice.channelId });
+          console.log(`🎤 Cleaned up temp voice channel (user left too quickly)`);
         }
       } catch (cleanupError) {
         console.error('Error cleaning up orphaned temp voice channel:', cleanupError);
       }
+    } else {
+      console.error('Error creating temp voice channel:', error);
     }
   }
 }
